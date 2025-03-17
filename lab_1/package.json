@@ -1,0 +1,13 @@
+{
+    "name": "web-sharaga-lab1",
+    "version": "1.0.0",
+    "author":{"name":"BBlteaOFpaiN"},
+    "main": "index.js",
+    "scripts": {
+        "start": "node index.js",
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "license": "ISC",
+    "dependencies": {},
+    "devDependencies": {}
+}
