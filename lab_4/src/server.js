@@ -7,7 +7,51 @@ const fastify = Fastify({
 
 const Id_software = mockedData;
 
-fastify.get('/api', async function handler(request, reply) {
+const querySchema = {
+    type: 'object',
+    properties: {
+        page: { type: 'integer', minimum: 1 },
+        limit: { type: 'integer', minimum: 1 }
+    },
+    required: [],
+    additionalProperties: false
+};
+
+const postSchema = {
+    body: {
+        type: 'object',
+        properties: {
+            name: { type: 'string', minLength: 1 },
+            pic: { type: 'string', format: 'uri' }
+        },
+        required: ['name', 'pic'],
+        additionalProperties: false
+    }
+};
+
+const paramSchema = {
+    params: {
+        type: 'object',
+        properties: {
+            Id_softwareId: { type: 'integer', minimum: 1 }
+        },
+        required: ['Id_softwareId']
+    }
+};
+
+const patchSchema = {
+    body: {
+        type: 'object',
+        properties: {
+            name: { type: 'string', minLength: 1 },
+            pic: { type: 'string', format: 'uri' }
+        },
+        required: [],
+        additionalProperties: false
+    }
+};
+
+fastify.get('/api', { schema: { querystring: querySchema } }, async function handler(request, reply) {
     const queryObject = request.query;
     const page = parseInt(queryObject.page) || 1;
     const limit = parseInt(queryObject.limit) || 10;
@@ -18,11 +62,10 @@ fastify.get('/api', async function handler(request, reply) {
     return paginatedData;
 })
 
-fastify.post('/api', async function handler(request, reply) {
-    const { name, pic } = request.body
+fastify.post('/api', { schema: postSchema }, async function handler(request, reply) {
+    const { name, pic } = request.body;
 
     const ids = Id_software.length ? Id_software.map(Id_software => Id_software.id) : [0];
-
     const maxId = Math.max(...ids);
 
     const newId_software = { id: maxId + 1, name, pic };
@@ -32,7 +75,7 @@ fastify.post('/api', async function handler(request, reply) {
     return Id_software;
 })
 
-fastify.put('/api/:Id_softwareId', async function handler(request, reply) {
+fastify.put('/api/:Id_softwareId', { schema: { ...paramSchema, body: postSchema.body } }, async function handler(request, reply) {
     const { Id_softwareId } = request.params;
     const index = Id_software.findIndex(Id_software => Id_software.id === parseInt(Id_softwareId));
 
@@ -45,12 +88,10 @@ fastify.put('/api/:Id_softwareId', async function handler(request, reply) {
         return;
     }
 
-    console.log(Id_softwareId);
-
     return Id_software;
 })
 
-fastify.patch('/api/:Id_softwareId', async function handler(request, reply) {
+fastify.patch('/api/:Id_softwareId', { schema: { ...paramSchema, body: patchSchema.body } }, async function handler(request, reply) {
     const { Id_softwareId } = request.params;
     const index = Id_software.findIndex(Id_software => Id_software.id === parseInt(Id_softwareId));
 
@@ -71,7 +112,7 @@ fastify.patch('/api/:Id_softwareId', async function handler(request, reply) {
     return Id_software;
 })
 
-fastify.delete('/api/:Id_softwareId', async function handler(request, reply) {
+fastify.delete('/api/:Id_softwareId', { schema: paramSchema }, async function handler(request, reply) {
     const { Id_softwareId } = request.params;
     const index = Id_software.findIndex(Id_software => Id_software.id === parseInt(Id_softwareId));
 
