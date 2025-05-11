@@ -1,139 +1,100 @@
-import Fastify from 'fastify'
+import Fastify from 'fastify';
 import fastifyJwt from '@fastify/jwt';
-import fastifyCookie from '@fastify/cookie';
-import fastifyRedis from '@fastify/redis';
-import { DateTime } from 'luxon';
-
-import { sequelize } from './config/database.js'
-import { Pokemon, User } from './models/index.js';
-import { UserService } from './services/user.service.js'
+import { sequelize } from './config/database.js';
+import { Games } from './models/games.model.js';
+import { UserService } from './services/user.service.js';
 
 const fastify = Fastify({
     logger: true
-})
+});
 
 fastify.register(fastifyJwt, {
-    secret: 'supersecret',
-    cookie: {
-        cookieName: 'access_token',
-        signed: false,
-        expiresIn: '2d'
-    }
-})
+    secret: '733e2f0a96964c7c6117daa6a7f5ff35dec4f182', 
+});
 
-fastify.register(fastifyRedis, { host: '127.0.0.1', password: 'qazwsxedc' })
-
-fastify.decorate("authenticate", async function (request, reply) {
+fastify.decorate('authenticate', async function (request, reply) {
     try {
-        const user = await request.jwtVerify();
-
-        const token = request.cookies.access_token
-        const existingToken = await fastify.redis.get(`user:access_token:${user.id}`);
-
-        if (token !== existingToken) {
-            throw Error('Invalid token')
-        }
+        await request.jwtVerify();
     } catch (err) {
-        reply.send(err)
+        reply.code(401).send({ error: 'Unauthorized' });
     }
-})
+});
 
+fastify.get('/api/games', { preHandler: [fastify.authenticate] }, async function handler(request, reply) {
+    const { page = 1, limit = 10 } = request.query;
+    const offset = (page - 1) * limit;
+    const result = await Games.findAndCountAll({
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+    });
 
-fastify.register(fastifyCookie, {
-    secret: "supersecret",
-    hook: 'onRequest',
-    parseOptions: {}  // options for parsing cookies
-})
+    return {
+        data: result.rows,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total: result.count,
+    };
+});
 
-fastify.post('/registration', async function handler(request, reply) {
-    const { error, data: result } = await UserService.registation(request.body);
-
-    if (error) {
-        return { error: 'Internal server error' };
-    }
-
-    return result;
-})
-
-fastify.post('/login', async function handler(request, reply) {
-    const { error, data: user } = await UserService.login(request.body);
-
-    if (error) {
-        return {
-            error
-        };
-    }
-
-    const token = fastify.jwt.sign(user.dataValues, { expiresIn: '2d' });
-
-    await fastify.redis.set(`user:access_token:${user.dataValues.id}`, token)
-
-    reply.setCookie('access_token', token, {
-        domain: 'localhost',
-        path: '/',
-        secure: true,
-        sameSite: true,
-        expires: DateTime.now().plus({ days: 2 }).toJSDate(),
-    })
-})
-
-fastify.get('/me', {
-    onRequest: [fastify.authenticate]
-}, async function handler(request, reply) {
-    const { error, data: user } = await UserService.get(request.user.id);
-
-    if (error) {
-        return { error: 'Internal server error' };
-    }
-
-    return user
-})
-
-fastify.get('/api', async function handler(request, reply) {
-    // Need to implement pagination
-    const result = await Pokemon.findAll();
-
-    return result
-})
-
-fastify.post('/api', async function handler(request, reply) {
+fastify.post('/api/games', { preHandler: [fastify.authenticate] }, async function handler(request, reply) {
     try {
         const { name, pic } = request.body;
 
-        const newPokemon = await Pokemon.create({ name, pic });
+        const newGame = await Games.create({ name, pic });
 
-        return newPokemon;
-    }
-    catch (err) {
+        return newGame;
+    } catch (err) {
         console.error(err);
 
         return { error: 'Internal server error' };
     }
-})
+});
 
-fastify.put('/api/:pokemonId', async function handler(request, reply) {
-    // Need to be implemented
+fastify.post('/api/users/register', async function handler(request, reply) {
+    const { email, password } = request.body;
 
-    return {};
-})
+    const result = await UserService.registation({ email, password });
 
-fastify.patch('/api/:pokemonId', async function handler(request, reply) {
-    // Need to be implemented
+    if (result.error) {
+        reply.code(500).send({ error: result.error });
+    } else {
+        reply.code(201).send(result.data);
+    }
+});
 
-    return {};
-})
+fastify.post('/api/users/login', async function handler(request, reply) {
+    const { email, password } = request.body;
 
-fastify.delete('/api/:pokemonId', async function handler(request, reply) {
-    // Need to be implemented
+    const result = await UserService.login({ email, password });
 
-    return {};
-})
+    if (result.error) {
+        reply.code(401).send({ error: result.error });
+    } else {
+        const token = fastify.jwt.sign({ id: result.data.id, email: result.data.email });
+
+        reply.code(200).send({ token });
+    }
+});
+
+fastify.get('/api/users/:userId', { preHandler: [fastify.authenticate] }, async function handler(request, reply) {
+    const { userId } = request.params;
+
+    const result = await UserService.get(userId);
+
+    if (result.error) {
+        reply.code(500).send({ error: result.error });
+    } else if (!result.data) {
+        reply.code(404).send({ message: 'User not found!' });
+    } else {
+        reply.code(200).send(result.data);
+    }
+});
 
 try {
     await sequelize.authenticate();
-    await sequelize.sync()
-    await fastify.listen({ port: 8000 })
+    await sequelize.sync({ force: true });
+    await fastify.listen({ port: 8000 });
 } catch (err) {
-    fastify.log.error(err)
-    process.exit(1)
+    fastify.log.error(err);
+    process.exit(1);
 }

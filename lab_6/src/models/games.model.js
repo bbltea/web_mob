@@ -1,9 +1,9 @@
 import { DataTypes, Model } from 'sequelize';
 import { sequelize } from '../config/database.js';
 
-export class Pokemon extends Model { }
+export class Games extends Model { }
 
-Pokemon.init(
+Games.init(
     {
         id: {
             type: DataTypes.INTEGER,
@@ -23,6 +23,6 @@ Pokemon.init(
     },
     {
         sequelize,
-        modelName: 'pokemons',
+        modelName: 'games',
     },
 );
