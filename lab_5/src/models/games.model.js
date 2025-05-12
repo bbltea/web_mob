@@ -20,6 +20,10 @@ Games.init(
             allowNull: false,
             unique: true,
         },
+        is_deleted: {
+            type: DataTypes.BOOLEAN,
+            is_deleted: false,
+        }
     },
     {
         sequelize,
