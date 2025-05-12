@@ -95,7 +95,9 @@ fastify.delete('/api/:gameId', async function handler(request, reply) {
             return;
         }
 
-        await game.destroy();
+        //await game.destroy()
+        game.is_deleted = true;
+        await game.save();
 
         reply.code(204).send();
     } catch (err) {
