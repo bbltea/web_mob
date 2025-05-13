@@ -23,6 +23,7 @@ Games.init(
     },
     {
         sequelize,
+        paranoid: true,
         modelName: 'games',
     },
 );

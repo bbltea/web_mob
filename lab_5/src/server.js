@@ -9,16 +9,8 @@ const fastify = Fastify({
 fastify.get('/api', async function handler(request, reply) {
     const { page = 1, limit = 10 } = request.query; 
 
-    let whereCondition = {};
-
-    if (is_deleted === 'true') {
-    whereCondition.is_deleted = { [Sequelize.Op.not]: null };
-    } else if (deleted === 'false') {
-    whereCondition.is_deleted = null;
-    } 
     const offset = (page - 1) * limit; 
     const result = await Games.findAndCountAll({
-        where: whereCondition,
         limit: parseInt(limit),
         offset: parseInt(offset), 
     });
@@ -103,9 +95,7 @@ fastify.delete('/api/:gameId', async function handler(request, reply) {
             return;
         }
 
-        //await game.destroy()
-        game.is_deleted = true;
-        await game.save();
+        await game.destroy()
 
         reply.code(204).send();
     } catch (err) {

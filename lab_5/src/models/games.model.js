@@ -19,14 +19,11 @@ Games.init(
             type: DataTypes.STRING,
             allowNull: false,
             unique: true,
-        },
-        is_deleted: {
-            type: DataTypes.BOOLEAN,
-            is_deleted: false,
         }
     },
     {
         sequelize,
+        paranoid: true,
         modelName: 'games',
     },
 );

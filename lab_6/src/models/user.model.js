@@ -28,6 +28,7 @@ User.init(
     },
     {
         sequelize,
+        paranoid: true,
         modelName: 'users',
     },
 );
