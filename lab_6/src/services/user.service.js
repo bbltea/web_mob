@@ -3,7 +3,7 @@ import { User } from '../models/index.js';
 export class UserService {
     static async registation(payload) {
         try {
-            const result = await User.create({ email: payload.email, password: payload.password, salt: 'thisIsSalt' });
+            const result = await User.create({ email: payload.email, password: payload.password, salt: 'Salt' });
 
             return { error: null, data: result }
         }
