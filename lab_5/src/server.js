@@ -6,7 +6,51 @@ const fastify = Fastify({
     logger: true
 })
 
-fastify.get('/api', async function handler(request, reply) {
+const querySchema = {
+    type: 'object',
+    properties: {
+        page: { type: 'integer', minimum: 1 },
+        limit: { type: 'integer', minimum: 1 }
+    },
+    required: [],
+    additionalProperties: false
+};
+
+const postSchema = {
+    body: {
+        type: 'object',
+        properties: {
+            name: { type: 'string', minLength: 1 },
+            pic: { type: 'string', format: 'uri' }
+        },
+        required: ['name', 'pic'],
+        additionalProperties: false
+    }
+};
+
+const paramSchema = {
+    params: {
+        type: 'object',
+        properties: {
+            Id_softwareId: { type: 'integer', minimum: 1 }
+        },
+        required: ['Id_softwareId']
+    }
+};
+
+const patchSchema = {
+    body: {
+        type: 'object',
+        properties: {
+            name: { type: 'string', minLength: 1 },
+            pic: { type: 'string', format: 'uri' }
+        },
+        required: [],
+        additionalProperties: false
+    }
+};
+
+fastify.get('/api', { schema: { querystring: querySchema } }, async function handler(request, reply) {
     const { page = 1, limit = 10 } = request.query; 
 
     const offset = (page - 1) * limit; 
@@ -23,7 +67,7 @@ fastify.get('/api', async function handler(request, reply) {
     };
 })
 
-fastify.post('/api', async function handler(request, reply) {
+fastify.post('/api',  { schema: postSchema },  async function handler(request, reply) {
     try {
         const { name, pic } = request.body;
 
@@ -38,7 +82,7 @@ fastify.post('/api', async function handler(request, reply) {
     }
 })
 
-fastify.put('/api/:gameId', async function handler(request, reply) {
+fastify.put('/api/:gameId', { schema: { ...paramSchema, body: postSchema.body } }, async function handler(request, reply) {
     try {
         const { gameId } = request.params; 
         const { name, pic } = request.body; 
@@ -61,7 +105,7 @@ fastify.put('/api/:gameId', async function handler(request, reply) {
     }
 })
 
-fastify.patch('/api/:gameId', async function handler(request, reply) {
+fastify.patch('/api/:gameId', { schema: { ...paramSchema, body: patchSchema.body } },  async function handler(request, reply) {
     try {
         const { gameId } = request.params; 
         const { name, pic } = request.body; 
@@ -84,7 +128,7 @@ fastify.patch('/api/:gameId', async function handler(request, reply) {
     }
 })
 
-fastify.delete('/api/:gameId', async function handler(request, reply) {
+fastify.delete('/api/:gameId', { schema: paramSchema }, async function handler(request, reply) {
     try {
         const { gameId } = request.params;
 
@@ -95,7 +139,7 @@ fastify.delete('/api/:gameId', async function handler(request, reply) {
             return;
         }
 
-        await game.destroy()
+        await game.destroy();
 
         reply.code(204).send();
     } catch (err) {
