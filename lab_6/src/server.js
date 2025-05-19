@@ -57,8 +57,7 @@ fastify.decorate('authenticate', async function (request, reply) {
 
 fastify.get('/api/games', {
     schema: { querystring: querySchema },
-    preHandler: [fastify.authenticate]
-}, async function handler(request, reply) {
+    preHandler: [fastify.authenticate] }, async function handler(request, reply) {
     const { page = 1, limit = 10 } = request.query;
     const offset = (page - 1) * limit;
     const result = await Games.findAndCountAll({
@@ -76,8 +75,7 @@ fastify.get('/api/games', {
 
 fastify.post('/api/games', {
     schema: postSchema,
-    preHandler: [fastify.authenticate]
-}, async function handler(request, reply) {
+    preHandler: [fastify.authenticate] }, async function handler(request, reply) {
     try {
         const { name, pic } = request.body;
         const newGame = await Games.create({ name, pic });
@@ -89,8 +87,7 @@ fastify.post('/api/games', {
 });
 
 fastify.post('/api/users/register', {
-    schema: userSchema
-}, async function handler(request, reply) {
+    schema: userSchema }, async function handler(request, reply) {
     const { email, password } = request.body;
     const result = await UserService.registation({ email, password });
     if (result.error) {
@@ -101,8 +98,7 @@ fastify.post('/api/users/register', {
 });
 
 fastify.post('/api/users/login', {
-    schema: userSchema
-}, async function handler(request, reply) {
+    schema: userSchema }, async function handler(request, reply) {
     const { email, password } = request.body;
     const result = await UserService.login({ email, password });
     if (result.error) {
@@ -114,10 +110,8 @@ fastify.post('/api/users/login', {
     }
 });
 
-fastify.get('/api/users/:userId', {
-    schema: { querystring: querySchema },
-    preHandler: [fastify.authenticate]
-}, async function handler(request, reply) {
+fastify.get('/api/users/:userId', { schema: { querystring: querySchema },
+ preHandler: [fastify.authenticate]}, async function handler(request, reply) {
     const { userId } = request.params;
     const result = await UserService.get(userId);
     if (result.error) {
