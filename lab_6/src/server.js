@@ -1,13 +1,15 @@
 import Fastify from 'fastify';
 import fastifyJwt from '@fastify/jwt';
+import fastifyCookie from '@fastify/cookie';
 import { sequelize } from './config/database.js';
 import { Games } from './models/games.model.js';
 import { UserService } from './services/user.service.js';
 import { redis } from './config/redis.js';
-
 const fastify = Fastify({
     logger: true
 });
+
+fastify.register(fastifyCookie);
 
 const querySchema = {
     type: 'object',
@@ -49,7 +51,16 @@ fastify.register(fastifyJwt, {
 
 fastify.decorate('authenticate', async function (request, reply) {
     try {
-        await request.jwtVerify();
+        let token;
+        if (request.headers.authorization && request.headers.authorization.startsWith('Bearer ')) {
+            token = request.headers.authorization.split(' ')[1];
+        } else if (request.cookies && request.cookies.token) {
+            token = request.cookies.token;
+        }
+        if (!token) {
+            return reply.code(401).send({ error: 'Unauthorized' });
+        }
+        request.user = fastify.jwt.verify(token);
     } catch (err) {
         reply.code(401).send({ error: 'Unauthorized' });
     }
@@ -105,14 +116,26 @@ fastify.post('/api/users/login', {
         reply.code(401).send({ error: result.error });
     } else {
         const token = fastify.jwt.sign({ id: result.data.id, email: result.data.email });
+        reply.setCookie('token', token, {
+            httpOnly: true,
+            sameSite: 'strict',
+            path: '/',
+            maxAge: 60 * 60 * 24
+        });
         await redis.set(`auth:${result.data.id}`, token, 'EX', 60 * 60 * 24);
         reply.code(200).send({ token });
     }
 });
 
-fastify.get('/api/users/:userId', { schema: { querystring: querySchema },
- preHandler: [fastify.authenticate]}, async function handler(request, reply) {
-    const { userId } = request.params;
+fastify.get('/api/users/:userId', {
+    schema: { querystring: querySchema },
+    preHandler: [fastify.authenticate]
+}, async function handler(request, reply) {
+    let { userId } = request.params;
+    userId = parseInt(userId, 10);
+    if (isNaN(userId)) {
+        return reply.code(400).send({ error: 'Invalid userId' });
+    }
     const result = await UserService.get(userId);
     if (result.error) {
         reply.code(500).send({ error: result.error });
@@ -125,7 +148,7 @@ fastify.get('/api/users/:userId', { schema: { querystring: querySchema },
 
 try {
     await sequelize.authenticate();
-    await sequelize.sync({ force: true });
+    await sequelize.sync();
     await fastify.listen({ port: 8000 });
 } catch (err) {
     fastify.log.error(err);

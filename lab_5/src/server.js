@@ -32,9 +32,9 @@ const paramSchema = {
     params: {
         type: 'object',
         properties: {
-            Id_softwareId: { type: 'integer', minimum: 1 }
+            gameId: { type: 'integer', minimum: 1 }
         },
-        required: ['Id_softwareId']
+        required: ['gameId']
     }
 };
 

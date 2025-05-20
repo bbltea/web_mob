@@ -155,7 +155,7 @@ fastify.post('/files', async function handler(request, reply) {
         };
 
         const upload = new Upload({
-            client: this.client, // make sure this.client is defined or replace with your S3 client
+            client: this.client,
             params,
             queueSize: 4,
             partSize: 1024 * 1024 * 5,
