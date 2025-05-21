@@ -1,10 +1,12 @@
 import Fastify from 'fastify'
+import fastifyJwt from '@fastify/jwt';
 import multipart from '@fastify/multipart';
 import path from 'path';
 import { PassThrough } from 'stream';
 import { Upload } from '@aws-sdk/lib-storage';
-import { File } from './file/file.model.js';
+import { File } from './models/file.model.js'
 
+import { sequelize } from './config/database.js';
 import { FileController } from './file/file.controller.js';
 
 const fastify = Fastify({
@@ -153,74 +155,9 @@ fastify.get('/health', async function handler(request, reply) {
     return { status: 'ok' }
 });
 
-fastify.post('/files', async function handler(request, reply) {
-    try {
-        const data = await request.file();
-        const { filename: fileName, mimetype, file: fileStream } = data;
+fastify.post('/files', FileController.saveFile)
 
-        const key = `${Math.random().toString(36).slice(2)}${path.extname(fileName)}`;
-        let totalSize = 0;
-
-        const passThrough = new PassThrough();
-        fileStream.on('data', chunk => {
-            totalSize += chunk.length;
-        });
-        fileStream.pipe(passThrough);
-
-        const params = {
-            Body: passThrough,
-            Bucket: 'storage',
-            Key: key,
-            ContentType: mimetype
-        };
-
-        const upload = new Upload({
-            client: this.client,
-            params,
-            queueSize: 4,
-            partSize: 1024 * 1024 * 5,
-            leavePartsOnError: false
-        });
-
-        const uploadResult = await upload.done();
-        console.log('File uploaded successfully', uploadResult);
-
-        const file = await File.create({
-            key,
-            original_name: fileName,
-            bucket: 'storage',
-            mime_type: mimetype,
-            size: totalSize
-        });
-
-        return { error: null, data: file };
-    } catch (e) {
-        console.error(e);
-        return { error: e, data: null };
-    }
-});
-
-fastify.get('/files/:fileId', async function handler(request, reply) {
-    const { fileId } = request.params;
-    try {
-        const file = await File.findByPk(fileId);
-        if (!file) {
-            return reply.code(404).send({ error: `File not found`, data: null });
-        }
-
-        const command = new GetObjectCommand({
-            Bucket: file.bucket,
-            Key: file.key
-        });
-
-        const result = await this.client.send(command);
-        return reply.code(200).send({ error: null, data: { stream: result.Body, file } });
-    } catch (e) {
-        console.error(e);
-        return reply.code(500).send({ error: e.toString(), data: null });
-    }
-});
-
+fastify.get('/files/:fileId', FileController.getFile)
 
 try {
     await sequelize.authenticate();

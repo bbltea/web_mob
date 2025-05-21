@@ -4,21 +4,30 @@ export class FileController {
     static async saveFile(request, reply) {
         const data = await request.file();
 
-        const { error, data: result } = await FileSerive.saveFile(data.file, data.filename, data.mimetype);
+        const { error, data: file } = await FileSerive.saveFile(data.file, data.filename, data.mimetype);
 
         if (error) {
             return { message: 'Internal server error' }
         }
-
-        // TODO
-        // Добавить модель File {id: key | UUID, size, mimetype, bucket, original_name}
-
-        return { data: result }
+        return {
+            id: file.id,
+            key: file.key,
+            size: file.size,
+            mime_type: file.mime_type,
+            url: `http://localhost:8000/api/files/${file.id}`
+        }
     }
 
     static async getFile(request, reply) {
-        // TODO
-        // Проверить наличие метаинформации о файле в БД и в случае успеха вернуть Stream
-        return { message: 'Need to be implemented' }
+        const { fileId } = request.params
+        const { error, data } = await FileSerive.getFile(fileId) // <-- Fix here
+
+        if (error) {
+            reply.code(404)
+            return { message: `File not found` }
+        }
+
+        reply.header(`Content-Type`, data.file.mime_type)
+        return data.stream
     }
 }

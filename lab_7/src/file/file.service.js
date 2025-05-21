@@ -1,6 +1,8 @@
 import path from 'node:path';
-import { S3Client } from "@aws-sdk/client-s3";
+import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
+import { PassThrough } from 'stream';
+import { File } from '../models/file.model.js';
 
 export class FileSerive {
     static client = new S3Client({
@@ -8,36 +10,72 @@ export class FileSerive {
         endpoint: "http://localhost:9000",
         forcePathStyle: true,
         credentials: {
-            accessKeyId: 'ribisGsNz4aFJaiuazBt',
-            secretAccessKey: 'alEwaVJj9RibfN6uYe6SQPEPQnDRY2jWLStMHVN0'
+            accessKeyId: 'K8PvX2pT931wUmNOT74L',
+            secretAccessKey: 'A7FIOvyiSNZbRgqVHaxHBZOmag7QlU4CDb5h86Cg'
         },
     });
 
     static async saveFile(fileStream, fileName, mimetype) {
         try {
-            const params = {
-                Body: fileStream,
-                Bucket: "storage",
-                Key: `${Math.random().toString(36).slice(2)}${path.extname(fileName)}`,
-                ContentType: mimetype,
-            };
+			const key = `${Math.random().toString(36).slice(2)}${path.extname(fileName)}`
+			let totalSize = 0
 
-            const parallelUploads3 = new Upload({
-                client: this.client,
-                params,
-                queueSize: 4,
-                partSize: 1024 * 1024 * 5,
-                leavePartsOnError: false,
-            })
+			const passThrough = new PassThrough()
+			fileStream.on(`data`, chunk => {
+				totalSize += chunk.length
+			})
+			fileStream.pipe(passThrough)
 
-            const result = await parallelUploads3.done();
+			const params = {
+				Body: passThrough,
+				Bucket: `storage`,
+				Key: key,
+				ContentType: mimetype
+			}
 
-            return { error: null, data: result };
-        }
-        catch (error) {
-            console.error(error);
+			const upload = new Upload({
+				client: this.client,
+				params,
+				queueSize: 4,
+				partSize: 1024 * 1024 * 5,
+				leavePartsOnError: false
+			})
 
-            return { error, data: null };
-        }
-    }
+			const uploadResult = await upload.done()
+			console.log(`File uploaded successfully`, uploadResult)
+
+			const file = await File.create({
+				key,
+				original_name: fileName,
+				bucket: `storage`,
+				mime_type: mimetype,
+				size: totalSize
+			})
+
+			return { error: null, data: file }
+		} catch (e) {
+			console.error(e)
+			return { error: e, data: null }
+		}
+	}
+
+	static async getFile(fileId) {
+		try {
+			const file = await File.findByPk(fileId)
+			if (!file) {
+				return { error: `File not found`, data: null }
+			}
+
+			const command = new GetObjectCommand({
+				Bucket: file.bucket,
+				Key: file.key
+			})
+
+			const result = await this.client.send(command)
+			return { error: null, data: { stream: result.Body, file } }
+		} catch (e) {
+			console.error(e)
+			return { error: e, data: null }
+		}
+	}
 }
