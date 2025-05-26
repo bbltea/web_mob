@@ -30,4 +30,18 @@ export class FileController {
         reply.header(`Content-Type`, data.file.mime_type)
         return data.stream
     }
+    static async downloadFile(request, reply) {
+		const { fileId } = request.params
+		const { error, data } = await FileSerive.getFile(fileId)
+
+		if (error) {
+			reply.code(404)
+			return { message: `File not found` }
+		}
+
+		reply.header(`Content-Type`, data.file.mime_type)
+		reply.header(`Content-Disposition`, `attachment; filename="${data.file.original_name}"`)
+		return data.stream
+	}
 }
+

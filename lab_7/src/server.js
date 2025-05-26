@@ -159,6 +159,8 @@ fastify.post('/files', FileController.saveFile)
 
 fastify.get('/files/:fileId', FileController.getFile)
 
+fastify.get(`/api/files/:fileId/download`, FileController.downloadFile)
+
 try {
     await sequelize.authenticate();
     await sequelize.sync();

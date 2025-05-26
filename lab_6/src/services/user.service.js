@@ -3,7 +3,10 @@ import { User } from '../models/index.js';
 export class UserService {
     static async registation(payload) {
         try {
-            const result = await User.create({ email: payload.email, password: payload.password, salt: 'Salt' });
+            const salt = Math.random().toString(36).substring(2, 10);
+            const crypto = await import('crypto');
+            const hashedPassword = crypto.createHash('sha256').update(payload.password + salt).digest('hex');
+            const result = await User.create({ email: payload.email, password: hashedPassword, salt: salt });
 
             return { error: null, data: result }
         }
@@ -19,9 +22,12 @@ export class UserService {
     static async login(payload) {
         try {
             const user = await User.findOne({ where: { email: payload.email } });
-            if (user && user.password === payload.password) {
-
-                return { error: null, data: user };
+            if (user) {
+                const crypto = await import('crypto');
+                const hashedPassword = crypto.createHash('sha256').update(payload.password + user.salt).digest('hex');
+                if (user.password === hashedPassword) {
+                    return { error: null, data: user };
+                }
             }
 
             return { error: 'User not found', data: null }
